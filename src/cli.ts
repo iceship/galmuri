@@ -1,7 +1,14 @@
 import { Command } from "@cliffy/command";
-import { ansiColorFormatter, configure, getLogger, getStreamSink } from "@logtape/logtape";
+import {
+  ansiColorFormatter,
+  configure,
+  getLogger,
+  getStreamSink,
+} from "@logtape/logtape";
+import { load } from "@std/dotenv";
 import { AsyncLocalStorage } from "node:async_hooks";
 import metadata from "../deno.json" with { type: "json" };
+import "./env.ts";
 import { scrape } from "./scrape.ts";
 
 const consoleSink = getStreamSink(Deno.stderr.writable, {
@@ -16,8 +23,8 @@ await configure({
       lowestLevel: "warning",
       sinks: ["console"],
     },
-    { category: ["galmuri"], lowestLevel: "debug", sinks: ["console"] }
-  ]
+    { category: ["galmuri"], lowestLevel: "debug", sinks: ["console"] },
+  ],
 });
 const logger = getLogger(["galmuri", "cli"]);
 
@@ -45,13 +52,18 @@ const command = new Command()
     },
   })
   .action(async () => {
-    logger.info("Hello from galmuri CLI!");
-    const result = await scrape("https://example.com");
-    logger.info("Scraped content: {result}", { result });
-  });
+    const results = await scrape("https://books.toscrape.com");
 
+    if (results.length > 0) {
+      logger.info("Total: {count} results", { count: results.length });
+      console.table(results);
+    } else {
+      logger.warn("no results found.");
+    }
+  });
 
 if (import.meta.main) {
   logger.debug("Starting galmuri CLI...");
+  await load({ export: true });
   await command.parse(Deno.args);
 }
